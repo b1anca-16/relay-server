@@ -21,51 +21,105 @@ wss.on("connection", (ws) => {
 
     if (action === "create") {
       const token = generateToken();
-      rooms.set(token, new Set([ws]));
+      rooms.set(token, {
+        clients: new Set([ws]),
+        names: new Map([[ws, parsed.name || "Host"]]),
+        host: ws,
+      });
       ws.roomId = token;
+      ws.name = parsed.name || "Host";
+      ws.role = "HOST";
       ws.send(JSON.stringify({ action: "created", token: token }));
+      broadcastParticipants(token);
       console.log("Neuer Raum erstellt:", token);
     } else if (action === "join") {
-      if (ws.roomId) {
-        ws.send(
-          JSON.stringify({ action: "error", message: "Bereits in einem Raum" }),
-        );
-        return;
-      }
-      if (rooms.has(room)) {
-        rooms.get(room).add(ws);
-        ws.roomId = room;
-        ws.send(JSON.stringify({ action: "joined", token: room }));
-        // benachrichtigen
-        rooms.get(room).forEach((client) => {
-          if (client !== ws)
-            client.send(JSON.stringify({ action: "partner_joined" }));
-        });
-        console.log("Jemand ist beigetreten:", room);
-      } else {
+      const roomObj = rooms.get(room);
+
+      if (!roomObj) {
         ws.send(
           JSON.stringify({ action: "error", message: "Room nicht gefunden" }),
         );
+        return;
       }
+
+      roomObj.clients.add(ws);
+      roomObj.names.set(ws, parsed.name || "Player");
+
+      ws.roomId = room;
+      ws.name = parsed.name || "Player";
+      ws.role = "JOIN";
+
+      ws.send(
+        JSON.stringify({
+          action: "joined",
+          token: room,
+        }),
+      );
+
+      // Host benachrichtigen
+      roomObj.clients.forEach((client) => {
+        if (client !== ws && client.readyState === 1) {
+          client.send(JSON.stringify({ action: "partner_joined" }));
+        }
+      });
+
+      broadcastParticipants(room);
     } else if (action === "update") {
       // Daten weiterleiten
       if (ws.roomId && rooms.has(ws.roomId)) {
-        rooms.get(ws.roomId).forEach((client) => {
-          if (client !== ws && client.readyState === 1)
-            client.send(JSON.stringify({ action: "update", data: data }));
+        const room = rooms.get(ws.roomId);
+
+        room.clients.forEach((client) => {
+          if (client !== ws && client.readyState === 1) {
+            client.send(
+              JSON.stringify({
+                action: "update",
+                data,
+              }),
+            );
+          }
         });
       }
     }
   });
-
   ws.on("close", () => {
-    if (ws.roomId && rooms.has(ws.roomId)) {
-      const room = rooms.get(ws.roomId);
-      room.delete(ws);
+    const room = rooms.get(ws.roomId);
+    if (!room) return;
 
-      if (room.size === 0) {
-        rooms.delete(ws.roomId);
-      }
+    room.clients.delete(ws);
+    room.names.delete(ws);
+
+    if (ws === room.host) {
+      // neuer Host
+      const next = room.clients.values().next().value;
+      room.host = next || null;
+
+      if (next) next.role = "HOST";
+    }
+
+    if (room.clients.size === 0) {
+      rooms.delete(ws.roomId);
+    } else {
+      broadcastParticipants(ws.roomId);
     }
   });
 });
+
+function broadcastParticipants(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+
+  const list = Array.from(room.clients).map((client) => ({
+    name: room.names.get(client),
+    role: client === room.host ? "HOST" : "JOIN",
+  }));
+
+  room.clients.forEach((client) => {
+    client.send(
+      JSON.stringify({
+        action: "participants",
+        list,
+      }),
+    );
+  });
+}
