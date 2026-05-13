@@ -9,7 +9,15 @@ function generateToken() {
 
 wss.on("connection", (ws) => {
   ws.on("message", (msg) => {
-    const { action, room, data } = JSON.parse(msg);
+    let parsed;
+    try {
+      parsed = JSON.parse(msg);
+    } catch {
+      return;
+    }
+
+    const { action, room, data } = parsed;
+    if (!action) return;
 
     if (action === "create") {
       const token = generateToken();
@@ -18,11 +26,17 @@ wss.on("connection", (ws) => {
       ws.send(JSON.stringify({ action: "created", token: token }));
       console.log("Neuer Raum erstellt:", token);
     } else if (action === "join") {
+      if (ws.roomId) {
+        ws.send(
+          JSON.stringify({ action: "error", message: "Bereits in einem Raum" }),
+        );
+        return;
+      }
       if (rooms.has(room)) {
         rooms.get(room).add(ws);
         ws.roomId = room;
         ws.send(JSON.stringify({ action: "joined", token: room }));
-        // Host benachrichtigen
+        // benachrichtigen
         rooms.get(room).forEach((client) => {
           if (client !== ws)
             client.send(JSON.stringify({ action: "partner_joined" }));
@@ -45,6 +59,13 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
-    console.log("Verbindung getrennt. Clients:", wss.clients.size);
+    if (ws.roomId && rooms.has(ws.roomId)) {
+      const room = rooms.get(ws.roomId);
+      room.delete(ws);
+
+      if (room.size === 0) {
+        rooms.delete(ws.roomId);
+      }
+    }
   });
 });
