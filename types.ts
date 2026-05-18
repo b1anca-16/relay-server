@@ -10,12 +10,14 @@ export interface Room {
   clients: Set<ExtendedWebSocket>;
   names: Map<ExtendedWebSocket, string>;
   host: ExtendedWebSocket | null;
+  distance: number;
 }
 
 export interface Message {
   action: string;
   room?: string;
   name?: string;
+  distance?: number;
   data?: unknown;
 }
 

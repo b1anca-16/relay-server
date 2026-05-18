@@ -40,18 +40,20 @@ export class CreateCommand implements Command {
   execute(ws: ExtendedWebSocket, msg: Message, rooms: Map<string, Room>): void {
     const token = generateToken();
     const name = msg.name ?? "Host";
+    const distance = msg.distance ?? 5;
  
     rooms.set(token, {
       clients: new Set([ws]),
       names: new Map([[ws, name]]),
       host: ws,
+      distance
     });
  
     ws.roomId = token;
     ws.name = name;
     ws.role = "HOST";
  
-    ws.send(JSON.stringify({ action: "created", token }));
+    ws.send(JSON.stringify({ action: "created", token, distance }));
     broadcastParticipants(token, rooms);
     console.log(`[create] Room ${token} by "${name}"`);
   }
@@ -121,6 +123,7 @@ export class GetRoomsCommand implements Command {
       id,
       participants: room.clients.size,
       host: room.host?.name ?? null,
+      distance: room.distance,
     }));
     ws.send(JSON.stringify({ action: "rooms", list: roomList }));
     console.log(`[getRooms] ${roomList.length} Räume`);
