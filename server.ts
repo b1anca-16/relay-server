@@ -10,7 +10,7 @@ import {
   broadcastParticipants,
   sendParticipantsTo
 } from "./helpers";
-import { CommandRegistry, CreateCommand, JoinCommand, UpdateCommand, RefreshCommand, GetRoomsCommand } from "./commands.ts";
+import { CommandRegistry, CreateCommand, JoinCommand, UpdateCommand, RefreshCommand, GetRoomsCommand, StartCommand } from "./commands.ts";
 import { WebSocketServer, WebSocket } from "ws";
 
 const rooms = new Map<string, Room>();
@@ -21,6 +21,7 @@ registry.register("join", new JoinCommand());
 registry.register("update", new UpdateCommand());
 registry.register("refresh", new RefreshCommand());
 registry.register("getRooms", new GetRoomsCommand());
+registry.register("start", new StartCommand());
  
 const wss = new WebSocketServer({ port: 8080 });
 console.log("WebSocket-Server läuft auf ws://localhost:8080");
