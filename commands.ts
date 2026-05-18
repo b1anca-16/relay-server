@@ -46,7 +46,8 @@ export class CreateCommand implements Command {
       clients: new Set([ws]),
       names: new Map([[ws, name]]),
       host: ws,
-      distance
+      distance,
+      progress: new Map([[ws, 0]])
     });
  
     ws.roomId = token;
@@ -74,12 +75,13 @@ export class JoinCommand implements Command {
     ws.roomId = roomId;
     ws.name = name;
     ws.role = "JOIN";
+    room.progress.set(ws, 0);
  
     ws.send(JSON.stringify({ 
-    action: "joined", 
-    token: roomId,
-    participants: buildParticipantList(room)  // ← direkt mitsenden
-}));
+      action: "joined", 
+      token: roomId,
+      participants: buildParticipantList(room)
+  }));
  
     // Alle anderen über neuen Teilnehmer informieren
     room.clients.forEach((client) => {
@@ -155,5 +157,45 @@ export class StartCommand implements Command {
     });
 
     console.log(`[start] Raum ${ws.roomId} gestartet`);
+  }
+}
+
+export class ProgressCommand implements Command {
+  execute(ws: ExtendedWebSocket, msg: Message, rooms: Map<string, Room>): void {
+    console.log("Porgress empfangen!!");
+
+    if (!ws.roomId) return;
+
+    const room = rooms.get(ws.roomId);
+    if (!room) return;
+
+    const km = typeof msg.distance === "number"
+      ? msg.distance
+      : 0;
+
+    console.log("Porgress: " + km);
+
+    // speichern
+    room.progress.set(ws, km);
+
+    // leaderboard bauen
+    const leaderboard = Array.from(room.clients)
+      .map(client => ({
+        name: room.names.get(client) ?? "Unknown",
+        km: room.progress.get(client) ?? 0
+      }))
+      .sort((a, b) => b.km - a.km);
+
+    // broadcast
+    const payload = JSON.stringify({
+      action: "leaderboard",
+      list: leaderboard
+    });
+
+    room.clients.forEach(c => {
+      if (c.readyState === WebSocket.OPEN) {
+        c.send(payload);
+      }
+    });
   }
 }
