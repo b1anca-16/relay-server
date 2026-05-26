@@ -181,10 +181,17 @@ export class ProgressCommand implements Command {
     // leaderboard bauen
     const leaderboard = Array.from(room.clients)
       .map(client => ({
-        name: room.names.get(client) ?? "Unknown",
-        km: room.progress.get(client) ?? 0
+          name: room.names.get(client) ?? "Unknown",
+          km: room.progress.get(client) ?? 0,
+          finished: (room.progress.get(client) ?? 0) >= room.distance
       }))
-      .sort((a, b) => b.km - a.km);
+      .sort((a, b) => {
+        if (a.finished && b.finished) return 0;
+        if (a.finished) return -1;
+        if (b.finished) return 1;
+        return b.km - a.km;
+      })
+      .map((entry, index) => ({ ...entry, place: index + 1 }));
 
     // broadcast
     const payload = JSON.stringify({
