@@ -47,7 +47,8 @@ export class CreateCommand implements Command {
       names: new Map([[ws, name]]),
       host: ws,
       distance,
-      progress: new Map([[ws, 0]])
+      progress: new Map([[ws, 0]]),
+      started: false
     });
  
     ws.roomId = token;
@@ -67,6 +68,9 @@ export class JoinCommand implements Command {
  
     const room = rooms.get(roomId);
     if (!room) return sendError(ws, "Room nicht gefunden");
+    if (room.started) {
+      return sendError(ws, "Der Lauf hat bereits begonnen");
+  }
  
     const name = msg.name ?? "Player";
  
@@ -145,6 +149,7 @@ export class StartCommand implements Command {
       return sendError(ws, "Nur der Host darf den Lauf starten");
     }
 
+    room.started = true;
     const payload = JSON.stringify({
       action: "started",
       startedAt: Date.now()

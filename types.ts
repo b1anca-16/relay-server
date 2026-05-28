@@ -13,6 +13,7 @@ export interface Room {
   host: ExtendedWebSocket | null;
   distance: number;
   progress: Map<ExtendedWebSocket, number>;
+  started: boolean;
 }
 
 export interface Message {
