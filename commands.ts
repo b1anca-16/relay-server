@@ -10,7 +10,8 @@ import {
   generateToken,
   broadcastParticipants,
   sendParticipantsTo,
-  buildParticipantList
+  buildParticipantList,
+  broadcastLeaderboard
 } from "./helpers";
 
 export class CommandRegistry {
@@ -167,47 +168,34 @@ export class StartCommand implements Command {
 
 export class ProgressCommand implements Command {
   execute(ws: ExtendedWebSocket, msg: Message, rooms: Map<string, Room>): void {
-    console.log("Porgress empfangen!!");
-
     if (!ws.roomId) return;
 
     const room = rooms.get(ws.roomId);
     if (!room) return;
 
-    const km = typeof msg.distance === "number"
-      ? msg.distance
-      : 0;
-
-    console.log("Porgress: " + km);
-
-    // speichern
+    const km = typeof msg.distance === "number" ? msg.distance : 0;
     room.progress.set(ws, km);
 
-    // leaderboard bauen
-    const leaderboard = Array.from(room.clients)
-      .map(client => ({
-          name: room.names.get(client) ?? "Unknown",
-          km: room.progress.get(client) ?? 0,
-          finished: (room.progress.get(client) ?? 0) >= room.distance
-      }))
-      .sort((a, b) => {
-        if (a.finished && b.finished) return 0;
-        if (a.finished) return -1;
-        if (b.finished) return 1;
-        return b.km - a.km;
-      })
-      .map((entry, index) => ({ ...entry, place: index + 1 }));
+    broadcastLeaderboard(ws.roomId, rooms);
+  }
+}
 
-    // broadcast
-    const payload = JSON.stringify({
-      action: "leaderboard",
-      list: leaderboard
-    });
+export class LeaveCommand implements Command {
+  execute(ws: ExtendedWebSocket, _msg: Message, rooms: Map<string, Room>): void {
+    if (!ws.roomId) return;
 
-    room.clients.forEach(c => {
-      if (c.readyState === WebSocket.OPEN) {
-        c.send(payload);
-      }
-    });
+    const room = rooms.get(ws.roomId);
+    if (!room) return;
+
+    room.clients.delete(ws);
+
+    console.log(`[leave] "${ws.name}" hat Raum ${ws.roomId} verlassen (bleibt im Board)`);
+
+    if (room.clients.size === 0) {
+      rooms.delete(ws.roomId);
+      console.log(`[room] Raum ${ws.roomId} gelöscht`);
+    } else {
+      broadcastLeaderboard(ws.roomId, rooms);
+    }
   }
 }
