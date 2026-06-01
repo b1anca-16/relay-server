@@ -4,7 +4,6 @@ export type ExtendedWebSocket = WebSocket & {
   roomId?: string;
   name?: string;
   role?: "HOST" | "JOIN";
-  //progress?: number;
 };
 
 export interface Room {
@@ -14,6 +13,7 @@ export interface Room {
   distance: number;
   progress: Map<ExtendedWebSocket, number>;
   started: boolean;
+  runName: string;
 }
 
 export interface Message {
@@ -22,6 +22,7 @@ export interface Message {
   name?: string;
   distance?: number;
   data?: unknown;
+  runName?: string;
 }
 
 export interface Participant {

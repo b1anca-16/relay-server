@@ -42,6 +42,7 @@ export class CreateCommand implements Command {
     const token = generateToken();
     const name = msg.name ?? "Host";
     const distance = msg.distance ?? 5;
+    const runName = msg.runName ?? "Lauf";
  
     rooms.set(token, {
       clients: new Set([ws]),
@@ -49,7 +50,8 @@ export class CreateCommand implements Command {
       host: ws,
       distance,
       progress: new Map([[ws, 0]]),
-      started: false
+      started: false,
+      runName
     });
  
     ws.roomId = token;
@@ -85,6 +87,7 @@ export class JoinCommand implements Command {
     ws.send(JSON.stringify({ 
       action: "joined", 
       token: roomId,
+      runName: room.runName,
       participants: buildParticipantList(room)
   }));
  
