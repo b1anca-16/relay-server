@@ -126,3 +126,22 @@ export class GetRoomsCommand implements Command {
     console.log(`[getRooms] ${roomList.length} Räume`);
   }
 }
+
+export class StartCommand implements Command {
+  execute(ws: ExtendedWebSocket, msg: Message, rooms: Map<string, Room>): void {
+    if (!ws.roomId) return sendError(ws, "Nicht in einem Raum");
+
+    const room = rooms.get(ws.roomId);
+    if (!room) return sendError(ws, "Room nicht gefunden");
+
+    if (ws !== room.host) return sendError(ws, "Nur der Host kann starten");
+
+    room.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ action: "started" }));
+      }
+    });
+
+    console.log(`[start] Raum ${ws.roomId} gestartet`);
+  }
+}
