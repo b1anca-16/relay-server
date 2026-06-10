@@ -6,10 +6,10 @@ import type {
 } from "./types";
 import {
   sendError,
-  generateToken,
   broadcastParticipants,
-  sendParticipantsTo
+  broadcastLeaderboard
 } from "./helpers";
+import { CommandRegistry, CreateCommand, JoinCommand, UpdateCommand, RefreshCommand, GetRoomsCommand, StartCommand, ProgressCommand, LeaveCommand } from "./commands.ts";
 import {
   CommandRegistry,
   CreateCommand,
@@ -30,7 +30,10 @@ registry.register("update", new UpdateCommand());
 registry.register("refresh", new RefreshCommand());
 registry.register("getRooms", new GetRoomsCommand());
 registry.register("start", new StartCommand());
- 
+registry.register("progress", new ProgressCommand());
+registry.register("leave", new LeaveCommand());
+registry.register("start", new StartCommand());
+
 const wss = new WebSocketServer({ port: 8080 });
 console.log("WebSocket-Server läuft auf ws://localhost:8080");
  
@@ -55,13 +58,18 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
   });
  
   ws.on("close", () => {
+    console.log("Closed socket!!");
     if (!ws.roomId) return;
  
     const room = rooms.get(ws.roomId);
     if (!room) return;
- 
+
+    // Wenn nicht mehr in clients → sauberes Leave bereits verarbeitet
+    if (!room.clients.has(ws)) return;
+
     room.clients.delete(ws);
     room.names.delete(ws);
+    room.progress.delete(ws);
     console.log(`[disconnect] "${ws.name}" hat Raum ${ws.roomId} verlassen`);
  
     if (ws === room.host) {
@@ -76,6 +84,7 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
       console.log(`[room] Raum ${ws.roomId} gelöscht`);
     } else {
       broadcastParticipants(ws.roomId, rooms);
+      broadcastLeaderboard(ws.roomId, rooms);
     }
   });
 });

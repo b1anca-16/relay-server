@@ -10,13 +10,19 @@ export interface Room {
   clients: Set<ExtendedWebSocket>;
   names: Map<ExtendedWebSocket, string>;
   host: ExtendedWebSocket | null;
+  distance: number;
+  progress: Map<ExtendedWebSocket, number>;
+  started: boolean;
+  runName: string;
 }
 
 export interface Message {
   action: string;
   room?: string;
   name?: string;
+  distance?: number;
   data?: unknown;
+  runName?: string;
 }
 
 export interface Participant {

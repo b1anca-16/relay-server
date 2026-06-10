@@ -72,12 +72,14 @@ export class JoinCommand implements Command {
     ws.roomId = roomId;
     ws.name = name;
     ws.role = "JOIN";
- 
+    room.progress.set(ws, 0);
+
     ws.send(JSON.stringify({ 
-    action: "joined", 
-    token: roomId,
-    participants: buildParticipantList(room)  // ← direkt mitsenden
-}));
+      action: "joined",
+      token: roomId,
+      runName: room.runName,
+      participants: buildParticipantList(room)
+  }));
  
     // Alle anderen über neuen Teilnehmer informieren
     room.clients.forEach((client) => {
@@ -143,5 +145,68 @@ export class StartCommand implements Command {
     });
 
     console.log(`[start] Raum ${ws.roomId} gestartet`);
+  }
+}
+
+export class StartCommand implements Command {
+  execute(ws: ExtendedWebSocket, _msg: Message, rooms: Map<string, Room>): void {
+
+    if (!ws.roomId) return;
+      console.log("Started Room " + ws.roomId);
+
+    const room = rooms.get(ws.roomId);
+    if (!room) return;
+
+    if (room.host !== ws) {
+      return sendError(ws, "Nur der Host darf den Lauf starten");
+    }
+
+    room.started = true;
+    const payload = JSON.stringify({
+      action: "started",
+      startedAt: Date.now()
+    });
+
+    room.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(payload);
+      }
+    });
+
+    console.log(`[start] Raum ${ws.roomId} gestartet`);
+  }
+}
+
+export class ProgressCommand implements Command {
+  execute(ws: ExtendedWebSocket, msg: Message, rooms: Map<string, Room>): void {
+    if (!ws.roomId) return;
+
+    const room = rooms.get(ws.roomId);
+    if (!room) return;
+
+    const km = typeof msg.distance === "number" ? msg.distance : 0;
+    room.progress.set(ws, km);
+
+    broadcastLeaderboard(ws.roomId, rooms);
+  }
+}
+
+export class LeaveCommand implements Command {
+  execute(ws: ExtendedWebSocket, _msg: Message, rooms: Map<string, Room>): void {
+    if (!ws.roomId) return;
+
+    const room = rooms.get(ws.roomId);
+    if (!room) return;
+
+    room.clients.delete(ws);
+
+    console.log(`[leave] "${ws.name}" hat Raum ${ws.roomId} verlassen (bleibt im Board)`);
+
+    if (room.clients.size === 0) {
+      rooms.delete(ws.roomId);
+      console.log(`[room] Raum ${ws.roomId} gelöscht`);
+    } else {
+      broadcastLeaderboard(ws.roomId, rooms);
+    }
   }
 }
