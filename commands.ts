@@ -10,9 +10,10 @@ import {
   generateToken,
   broadcastParticipants,
   sendParticipantsTo,
-  buildParticipantList
+  buildParticipantList,
+  broadcastLeaderboard
 } from "./helpers";
-
+ 
 export class CommandRegistry {
   private commands = new Map<string, Command>();
  
@@ -35,17 +36,22 @@ export class CommandRegistry {
     command.execute(ws, msg, rooms);
   }
 }
-
+ 
 export class CreateCommand implements Command {
   execute(ws: ExtendedWebSocket, msg: Message, rooms: Map<string, Room>): void {
     const token = generateToken();
     const name = msg.name ?? "Host";
+    const distance = typeof msg.distance === "number" ? msg.distance : 5;
  
-    rooms.set(token, {
-      clients: new Set([ws]),
-      names: new Map([[ws, name]]),
-      host: ws,
-    });
+  rooms.set(token, {
+  clients: new Set([ws]),
+  names: new Map([[ws, name]]),
+  progress: new Map([[ws, 0]]),
+  distance: distance,
+  host: ws,
+  started: false,        // ← neu
+  runName: msg.runName ?? "",  // ← neu
+  });
  
     ws.roomId = token;
     ws.name = name;
@@ -53,7 +59,7 @@ export class CreateCommand implements Command {
  
     ws.send(JSON.stringify({ action: "created", token }));
     broadcastParticipants(token, rooms);
-    console.log(`[create] Room ${token} by "${name}"`);
+    console.log(`[create] Room ${token} by "${name}" (distance=${distance}km)`);
   }
 }
  
@@ -73,13 +79,13 @@ export class JoinCommand implements Command {
     ws.name = name;
     ws.role = "JOIN";
     room.progress.set(ws, 0);
-
-    ws.send(JSON.stringify({ 
+ 
+    ws.send(JSON.stringify({
       action: "joined",
       token: roomId,
       runName: room.runName,
       participants: buildParticipantList(room)
-  }));
+    }));
  
     // Alle anderen über neuen Teilnehmer informieren
     room.clients.forEach((client) => {
@@ -128,80 +134,61 @@ export class GetRoomsCommand implements Command {
     console.log(`[getRooms] ${roomList.length} Räume`);
   }
 }
-
-export class StartCommand implements Command {
-  execute(ws: ExtendedWebSocket, msg: Message, rooms: Map<string, Room>): void {
-    if (!ws.roomId) return sendError(ws, "Nicht in einem Raum");
-
-    const room = rooms.get(ws.roomId);
-    if (!room) return sendError(ws, "Room nicht gefunden");
-
-    if (ws !== room.host) return sendError(ws, "Nur der Host kann starten");
-
-    room.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ action: "started" }));
-      }
-    });
-
-    console.log(`[start] Raum ${ws.roomId} gestartet`);
-  }
-}
-
+ 
 export class StartCommand implements Command {
   execute(ws: ExtendedWebSocket, _msg: Message, rooms: Map<string, Room>): void {
-
+ 
     if (!ws.roomId) return;
       console.log("Started Room " + ws.roomId);
-
+ 
     const room = rooms.get(ws.roomId);
     if (!room) return;
-
+ 
     if (room.host !== ws) {
       return sendError(ws, "Nur der Host darf den Lauf starten");
     }
-
+ 
     room.started = true;
     const payload = JSON.stringify({
       action: "started",
       startedAt: Date.now()
     });
-
+ 
     room.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(payload);
       }
     });
-
+ 
     console.log(`[start] Raum ${ws.roomId} gestartet`);
   }
 }
-
+ 
 export class ProgressCommand implements Command {
   execute(ws: ExtendedWebSocket, msg: Message, rooms: Map<string, Room>): void {
     if (!ws.roomId) return;
-
+ 
     const room = rooms.get(ws.roomId);
     if (!room) return;
-
+ 
     const km = typeof msg.distance === "number" ? msg.distance : 0;
     room.progress.set(ws, km);
-
+ 
     broadcastLeaderboard(ws.roomId, rooms);
   }
 }
-
+ 
 export class LeaveCommand implements Command {
   execute(ws: ExtendedWebSocket, _msg: Message, rooms: Map<string, Room>): void {
     if (!ws.roomId) return;
-
+ 
     const room = rooms.get(ws.roomId);
     if (!room) return;
-
+ 
     room.clients.delete(ws);
-
+ 
     console.log(`[leave] "${ws.name}" hat Raum ${ws.roomId} verlassen (bleibt im Board)`);
-
+ 
     if (room.clients.size === 0) {
       rooms.delete(ws.roomId);
       console.log(`[room] Raum ${ws.roomId} gelöscht`);

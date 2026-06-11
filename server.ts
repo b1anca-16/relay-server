@@ -9,7 +9,6 @@ import {
   broadcastParticipants,
   broadcastLeaderboard
 } from "./helpers";
-import { CommandRegistry, CreateCommand, JoinCommand, UpdateCommand, RefreshCommand, GetRoomsCommand, StartCommand, ProgressCommand, LeaveCommand } from "./commands.ts";
 import {
   CommandRegistry,
   CreateCommand,
@@ -17,10 +16,12 @@ import {
   UpdateCommand,
   RefreshCommand,
   GetRoomsCommand,
-  StartCommand
+  StartCommand,
+  ProgressCommand,
+  LeaveCommand
 } from "./commands.ts";
 import { WebSocketServer, WebSocket } from "ws";
-
+ 
 const rooms = new Map<string, Room>();
 const registry = new CommandRegistry();
  
@@ -32,8 +33,7 @@ registry.register("getRooms", new GetRoomsCommand());
 registry.register("start", new StartCommand());
 registry.register("progress", new ProgressCommand());
 registry.register("leave", new LeaveCommand());
-registry.register("start", new StartCommand());
-
+ 
 const wss = new WebSocketServer({ port: 8080 });
 console.log("WebSocket-Server läuft auf ws://localhost:8080");
  
@@ -63,10 +63,10 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
  
     const room = rooms.get(ws.roomId);
     if (!room) return;
-
+ 
     // Wenn nicht mehr in clients → sauberes Leave bereits verarbeitet
     if (!room.clients.has(ws)) return;
-
+ 
     room.clients.delete(ws);
     room.names.delete(ws);
     room.progress.delete(ws);
