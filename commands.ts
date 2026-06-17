@@ -42,23 +42,33 @@ export class CreateCommand implements Command {
     const token = generateToken();
     const name = msg.name ?? "Host";
     const distance = typeof msg.distance === "number" ? msg.distance : 5;
- 
-  rooms.set(token, {
-  clients: new Set([ws]),
-  names: new Map([[ws, name]]),
-  progress: new Map([[ws, 0]]),
-  distance: distance,
-  host: ws,
-  started: false,        // ← neu
-  runName: msg.runName ?? "",  // ← neu
-  });
- 
+
+    const room: Room = {
+      clients: new Set([ws]),
+      names: new Map([[ws, name]]),
+      progress: new Map([[ws, 0]]),
+      distance: distance,
+      host: ws,
+      started: false,
+      runName: msg.runName ?? "",
+    };
+
+    rooms.set(token, room);
+
     ws.roomId = token;
     ws.name = name;
     ws.role = "HOST";
- 
-    ws.send(JSON.stringify({ action: "created", token }));
+
+    ws.send(JSON.stringify({
+      action: "created",
+      token,
+      runName: room.runName,
+      distance: room.distance,
+      participants: buildParticipantList(room)
+    }));
+
     broadcastParticipants(token, rooms);
+
     console.log(`[create] Room ${token} by "${name}" (distance=${distance}km)`);
   }
 }
@@ -84,6 +94,7 @@ export class JoinCommand implements Command {
       action: "joined",
       token: roomId,
       runName: room.runName,
+      distance: room.distance,
       participants: buildParticipantList(room)
     }));
  
