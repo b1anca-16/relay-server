@@ -51,17 +51,18 @@ export function broadcastLeaderboard(roomId: string, rooms: Map<string, Room>): 
   const room = rooms.get(roomId);
   if (!room) return;
 
-  const leaderboard = Array.from(room.names.entries())
+const leaderboard = Array.from(room.names.entries())
     .map(([client, name]) => ({
-      name,
-      km: room.progress.get(client) ?? 0,
-      finished: (room.progress.get(client) ?? 0) >= room.distance
+        name,
+        km: room.progress.get(client) ?? 0,
+        finished: (room.progress.get(client) ?? 0) >= room.distance,
+        finishedAt: client.finishedAt ?? Infinity
     }))
     .sort((a, b) => {
-      if (a.finished && b.finished) return 0;
-      if (a.finished) return -1;
-      if (b.finished) return 1;
-      return b.km - a.km;
+        if (a.finished && b.finished) return a.finishedAt - b.finishedAt;
+        if (a.finished) return -1;
+        if (b.finished) return 1;
+        return b.km - a.km;
     })
     .map((entry, index) => ({ ...entry, place: index + 1 }));
 

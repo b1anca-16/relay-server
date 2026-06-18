@@ -184,6 +184,10 @@ export class ProgressCommand implements Command {
  
     const km = typeof msg.distance === "number" ? msg.distance : 0;
     room.progress.set(ws, km);
+
+    if (km >= room.distance && !ws.finishedAt) {
+      ws.finishedAt = Date.now();
+  }
  
     broadcastLeaderboard(ws.roomId, rooms);
   }

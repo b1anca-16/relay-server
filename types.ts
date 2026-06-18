@@ -4,6 +4,7 @@ export type ExtendedWebSocket = WebSocket & {
   roomId?: string;
   name?: string;
   role?: "HOST" | "JOIN";
+  finishedAt?: number;
 };
 
 export interface Room {
