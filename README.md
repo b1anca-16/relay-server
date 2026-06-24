@@ -1,35 +1,35 @@
 # Runnerup Relay Server
 
-Dieser Relay-Server gehört zum Projekt **Runner** und wird benötigt, um die Community-Features lokal bereitzustellen.
+This relay server is part of the **Runner** project and is required to enable local community features.
 
-Ohne diesen Server funktionieren die Multiplayer- bzw. Echtzeit-Funktionen in Runnerup nicht.
-
----
-
-## 🚀 Zweck
-
-Der Server stellt eine WebSocket-Relay-Instanz bereit und verwaltet:
-
-- Rooms (Erstellen, Beitreten, Verlassen)
-- Teilnehmer-Synchronisation
-- Host-Management
-- Live-Leaderboards
-- Echtzeit-Updates (Progress, Refresh etc.)
-- Command-Handling über ein Registry-System
+Without this server, the multiplayer and real-time features in Runnerup will not work.
 
 ---
 
-## Voraussetzungen
+## Purpose
 
-- Node.js (empfohlen: LTS Version)
-- npm oder npx
-- TypeScript Runtime über `tsx`
+The server provides a WebSocket relay instance and manages:
+
+- Rooms (create, join, leave)
+- Participant synchronization
+- Host management
+- Live leaderboards
+- Real-time updates (progress, refresh, etc.)
+- Command handling via a registry system
 
 ---
 
-## ▶️ Starten des Servers
+## Requirements
 
-Im Projektverzeichnis:
+- Node.js (recommended: LTS version)
+- npm or npx
+- TypeScript runtime via `tsx`
+
+---
+
+## Starting the Server
+
+In the project directory:
 
 ```bash
 npx tsx server.ts
